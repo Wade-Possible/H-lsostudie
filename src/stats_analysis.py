@@ -45,3 +45,39 @@ def ci_bootstrap(data: pd.Series | np.ndarray, n_boot: int = 10_000, confidence:
     alpha = (1 - confidence) * 100
     low, high = np.percentile(boot_means, [alpha / 2, 100 - alpha / 2])
     return float(low), float(high)
+
+def test_smoker_blood_pressure(df: pd.DataFrame, alpha: float = 0.05) -> dict[str, float | bool]:
+    """Utför ensidigt Welchs t-test för att se om rökare har högre systoliskt bloodtryck."""
+    smokers = df.loc[df["smoker"] == "Yes", "systolic_bp"].dropna()
+    nonsmokers = df.loc[df["smoker"] == "No", "systolic_bp"].dropna()
+
+    t_stat, p_val = stats.ttest_ind(smokers, nonsmokers, equal_var=False, alternative="greater")
+
+    return {
+        "smoker_mean": float(smokers.mean()),
+        "nonsmoker_mean": float(nonsmokers.mean()),
+        "diff": float(smokers.mean() - nonsmokers.mean()),
+        "t_stat": float(t_stat),
+        "p_val": float(p_val),
+        "reject_h0": bool(p_val < alpha)
+
+    }
+
+def simulate_power(df: pd.DataFrame, true_effect: float, alpha: float = 0.05, n_sims: int = 2000, seed: int = 42) -> float:
+    """Simulerar statistikens styrka för en ensidig Welchs t-test."""
+    rng = np.random.default_rng(seed)
+    smokers = df.loc[df["smoker"] == "Yes", "systolic_bp"].dropna()
+    nonsmokers = df.loc[df["smoker"] == "No", "systolic_bp"].dropna()
+
+    n1, n2 = len(smokers), len(nonsmokers)
+    sd1, sd2 = smokers.std(ddof=1), nonsmokers.std(ddof=1)
+    base_mean = nonsmokers.mean()
+
+    rejections = 0
+    for _ in range(n_sims):
+        sim_smokers = rng.normal(loc=base_mean + true_effect, scale=sd1, size=n1)
+        sim_nonsmokers = rng.normal(loc=base_mean, scale=sd2, size=n2)
+        _, p = stats.ttest_ind(sim_smokers, sim_nonsmokers, equal_var=False, alternative="greater")
+        if p < alpha:
+            rejections += 1
+    return rejections / n_sims
