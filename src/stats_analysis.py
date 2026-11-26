@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats 
 
-def decript_stat(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+def decript_stat(df: pd.DataFrame, columns: list[str] = None) -> pd.DataFrame:
     """
     Ska beräknar medelvärde, median, min och max för valda kolumner  
     """
+    if columns is None:
+        columns = ["age", "weight", "height", "systolic_bp", "cholesterol"]
+    
     summary = df[columns].agg(["mean", "median", "min", "max"]).T
     summary.columns = ["Medelvärde", "Median", "Min", "Max"]
     return summary.round(2)
